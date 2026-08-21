@@ -14,8 +14,8 @@
     "dev": "electron . --dev",
     "check": "node scripts/check.js",
     "smoke:xmcl": "node scripts/xmcl-smoke.js",
-    "dist:win": "npm run verify && electron-builder --win nsis",
-    "dist:portable": "npm run verify && electron-builder --win portable",
+    "dist:win": "npm run verify && electron-builder --win nsis --publish never",
+    "dist:portable": "npm run verify && electron-builder --win portable --publish never",
     "test": "node scripts/selftest.js",
     "verify": "npm run check && npm run smoke:xmcl && npm test && node scripts/release-check.js"
   },
