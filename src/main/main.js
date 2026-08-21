@@ -71,6 +71,10 @@ function registerIpc() {
     try { return await auth.login(); }
     catch (e) { logger.error('Microsoft giriş hatası', e); throw e; }
   });
+  ipcMain.handle('auth:offline-login', async (_e, username) => {
+    try { return await auth.loginOffline(username); }
+    catch (e) { logger.error('Offline hesap hatası', e); throw e; }
+  });
   ipcMain.handle('auth:select', (_e, id) => auth.select(String(id)));
   ipcMain.handle('auth:remove', (_e, id) => auth.remove(String(id)));
   ipcMain.handle('auth:logout', () => auth.logout());
