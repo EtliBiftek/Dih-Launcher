@@ -6,7 +6,7 @@
   const user = await import('@xmcl/user');
 
   const requiredCore = ['launch', 'Version', 'MinecraftFolder'];
-  const requiredInstaller = ['getVersionList', 'install', 'installDependencies', 'getLoaderArtifactListFor', 'installFabric'];
+  const requiredInstaller = ['getVersionList', 'install', 'installDependencies', 'getLoaderArtifactListFor', 'installFabricByLoaderArtifact'];
   const requiredUser = ['MicrosoftAuthenticator', 'MojangClient'];
 
   for (const name of requiredCore) {
