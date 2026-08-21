@@ -49,7 +49,7 @@ jobs:
       - name: Verify Mojang and Fabric metadata
         run: node scripts/xmcl-online-smoke.js
       - name: Build NSIS installer
-        run: npx electron-builder --win nsis
+        run: npx electron-builder --win nsis --publish never
       - name: SHA-256
         shell: pwsh
         run: |
