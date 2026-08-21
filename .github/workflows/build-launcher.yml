@@ -1,3 +1,4 @@
+# Initial CI trigger
 name: Build Dih Launcher
 
 on:
