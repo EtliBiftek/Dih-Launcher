@@ -34,7 +34,7 @@ public final class DihClient implements ClientModInitializer {
     public void onInitializeClient() {
         CONFIG = DihConfig.load();
         KeyMapping.Category category = KeyMapping.Category.register(Identifier.fromNamespaceAndPath(MOD_ID, "main"));
-        MENU_KEY = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.dih.menu", InputConstants.Type.KEYSYM, InputConstants.KEY_RIGHT_SHIFT, category));
+        MENU_KEY = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.dih.menu", InputConstants.Type.KEYSYM, InputConstants.KEY_RSHIFT, category));
         ZOOM_KEY = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.dih.zoom", InputConstants.Type.KEYSYM, InputConstants.KEY_C, category));
         BACKVIEW_KEY = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.dih.backview", InputConstants.Type.KEYSYM, InputConstants.KEY_B, category));
         PERSPECTIVE_KEY = KeyBindingHelper.registerKeyBinding(new KeyMapping("key.dih.perspective", InputConstants.Type.KEYSYM, InputConstants.KEY_LALT, category));
