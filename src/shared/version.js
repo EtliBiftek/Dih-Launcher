@@ -1,5 +1,6 @@
 'use strict';
 
+// Dih launcher semantic version helpers.
 function parseVersion(value) {
   const clean = String(value || '0.0.0').trim().replace(/^v/i, '');
   const [core, pre = ''] = clean.split('-', 2);
