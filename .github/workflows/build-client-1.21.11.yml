@@ -1,9 +1,12 @@
-# Initial CI trigger
 name: Build Dih Client 1.21.11
 
 on:
   workflow_dispatch:
   push:
+    paths:
+      - 'client-mod/reference-1.21.11/**'
+      - '.github/workflows/build-client-1.21.11.yml'
+  pull_request:
     paths:
       - 'client-mod/reference-1.21.11/**'
       - '.github/workflows/build-client-1.21.11.yml'
