@@ -36,15 +36,16 @@ function page(name) {
 }
 document.querySelectorAll('.nav').forEach((b) => b.addEventListener('click', () => page(b.dataset.page)));
 
+function accountTypeLabel(type) { return type === 'offline' ? 'Offline hesap' : 'Microsoft'; }
 function renderAccount() {
   const b = $('accountBtn'); const avatar = b.querySelector('.avatar'); const name = b.querySelector('b'); const sub = b.querySelector('small');
   avatar.classList.remove('has-skin'); avatar.style.backgroundImage = '';
   if (state.account) {
     avatar.textContent = state.account.name.slice(0, 1).toUpperCase();
-    const skinUrl = state.account.skins?.[0]?.url;
+    const skinUrl = state.account.type === 'microsoft' ? state.account.skins?.[0]?.url : '';
     if (skinUrl) { avatar.classList.add('has-skin'); avatar.style.backgroundImage = `url(${JSON.stringify(skinUrl).slice(1, -1)})`; }
-    name.textContent = state.account.name; sub.textContent = 'Microsoft'; $('logoutBtn').classList.remove('hidden');
-  } else { avatar.textContent = '?'; name.textContent = 'Giriş yapılmadı'; sub.textContent = 'Microsoft hesabı'; $('logoutBtn').classList.add('hidden'); }
+    name.textContent = state.account.name; sub.textContent = accountTypeLabel(state.account.type); $('logoutBtn').classList.remove('hidden');
+  } else { avatar.textContent = '?'; name.textContent = 'Giriş yapılmadı'; sub.textContent = 'Microsoft veya Offline'; $('logoutBtn').classList.add('hidden'); }
   updatePlayButton();
 }
 function renderAccounts() {
@@ -52,8 +53,9 @@ function renderAccounts() {
   if (!state.accounts.length) { root.innerHTML = '<div class="empty compact">Kayıtlı hesap yok.</div>'; return; }
   for (const a of state.accounts) {
     const row = document.createElement('div'); row.className = `account-row ${a.active ? 'active' : ''}`;
-    row.innerHTML = `<div><b>${escapeHtml(a.name)}</b><small>${a.active ? 'Aktif hesap' : 'Microsoft hesabı'}</small></div><div class="mini-actions"><button data-use class="ghost">Kullan</button><button data-remove class="danger">Sil</button></div>`;
-    row.querySelector('[data-use]').addEventListener('click', async () => { try { state.account = await window.dih.selectAccount(a.id); state.accounts = await window.dih.listAccounts(); renderAccount(); renderAccounts(); } catch (e) { toast(e.message || e, true); } });
+    const typeText = a.type === 'offline' ? 'Offline hesap' : 'Microsoft hesabı';
+    row.innerHTML = `<div><b>${escapeHtml(a.name)}</b><small>${a.active ? `Aktif • ${typeText}` : typeText}</small></div><div class="mini-actions"><button data-use class="ghost">Kullan</button><button data-remove class="danger">Sil</button></div>`;
+    row.querySelector('[data-use]').addEventListener('click', async () => { try { state.account = await window.dih.selectAccount(a.id); state.accounts = await window.dih.listAccounts(); renderAccount(); renderAccounts(); toast(`${a.name} aktif hesap yapıldı.`); } catch (e) { toast(e.message || e, true); } });
     row.querySelector('[data-remove]').addEventListener('click', async () => { try { state.accounts = await window.dih.removeAccount(a.id); state.account = await window.dih.getAccount(); renderAccount(); renderAccounts(); } catch (e) { toast(e.message || e, true); } });
     root.appendChild(row);
   }
@@ -171,9 +173,23 @@ $('saveClientBtn').addEventListener('click', async () => {
 $('versionSelect').addEventListener('change', (e) => selectVersion(e.target.value));
 $('refreshBtn').addEventListener('click', () => refreshVersions());
 $('dataFolderBtn').addEventListener('click', () => window.dih.openDataFolder());
-$('accountBtn').addEventListener('click', async () => { state.accounts = await window.dih.listAccounts(); renderAccounts(); $('authModal').classList.remove('hidden'); });
+$('accountBtn').addEventListener('click', async () => { state.accounts = await window.dih.listAccounts(); renderAccounts(); $('authModal').classList.remove('hidden'); setTimeout(() => $('offlineName').focus(), 50); });
 $('modalClose').addEventListener('click', () => $('authModal').classList.add('hidden'));
-$('loginBtn').addEventListener('click', async () => { try { $('loginBtn').disabled = true; state.account = await window.dih.loginMicrosoft(); state.accounts = await window.dih.listAccounts(); renderAccount(); renderAccounts(); $('deviceCodeBox').classList.add('hidden'); toast('Hesap eklendi.'); } catch (e) { toast(e.message || e, true); } finally { $('loginBtn').disabled = false; } });
+$('loginBtn').addEventListener('click', async () => { try { $('loginBtn').disabled = true; state.account = await window.dih.loginMicrosoft(); state.accounts = await window.dih.listAccounts(); renderAccount(); renderAccounts(); $('deviceCodeBox').classList.add('hidden'); toast('Microsoft hesabı eklendi.'); } catch (e) { toast(e.message || e, true); } finally { $('loginBtn').disabled = false; } });
+async function loginOffline() {
+  try {
+    const username = $('offlineName').value.trim();
+    $('offlineLoginBtn').disabled = true;
+    state.account = await window.dih.loginOffline(username);
+    state.accounts = await window.dih.listAccounts();
+    renderAccount(); renderAccounts();
+    $('authModal').classList.add('hidden');
+    toast(`${state.account.name} ile offline hesap aktif.`);
+  } catch (e) { toast(e.message || e, true); }
+  finally { $('offlineLoginBtn').disabled = false; }
+}
+$('offlineLoginBtn').addEventListener('click', loginOffline);
+$('offlineName').addEventListener('keydown', (e) => { if (e.key === 'Enter') loginOffline(); });
 $('logoutBtn').addEventListener('click', async () => { await window.dih.logout(); state.account = null; state.accounts = await window.dih.listAccounts(); renderAccount(); renderAccounts(); });
 $('playBtn').addEventListener('click', async () => { if (!state.selected) return; try { $('crashBox').classList.add('hidden'); $('progressPanel').classList.remove('hidden'); $('playBtn').disabled = true; await window.dih.launch(state.selected); } catch (e) { toast(e.message || e, true); updatePlayButton(); } });
 $('stopBtn').addEventListener('click', () => window.dih.killGame());
