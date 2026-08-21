@@ -8,7 +8,7 @@ const { compareVersions } = require('../shared/version');
 
 const SAFE_VERSION = /^[0-9A-Za-z._+\-]{1,80}$/;
 function validateVersion(value) { const v = String(value || ''); if (!SAFE_VERSION.test(v)) throw new Error('Geçersiz Minecraft sürüm kimliği.'); return v; }
-function clamp01(v) { return Math.max(0, Math.min(1, Number(v) || 0)); }
+function clamp01(value) { return Math.max(0, Math.min(1, Number(value) || 0)); }
 function formatBytes(value) {
   const n = Math.max(0, Number(value) || 0);
   if (n >= 1024 * 1024 * 1024) return `${(n / (1024 * 1024 * 1024)).toFixed(2)} GB`;
@@ -21,7 +21,7 @@ class MinecraftService {
   constructor(app, configStore, githubService, javaManager, authService, clientConfig, rpc, logger, notify) {
     this.app = app; this.configStore = configStore; this.githubService = githubService; this.javaManager = javaManager; this.authService = authService; this.clientConfig = clientConfig; this.rpc = rpc; this.logger = logger; this.notify = notify;
     this.root = path.join(app.getPath('userData'), 'minecraft'); this.resources = path.join(this.root, 'resources'); this.instances = path.join(this.root, 'instances');
-    this.running = null; this.runningVersion = ''; this.preparing = false; this.prepareAbort = null; this.activeInstallController = null;
+    this.running = null; this.runningVersion = ''; this.preparing = false; this.prepareAbort = null; this.activeInstallTask = null;
   }
   instanceDir(version) { return path.join(this.instances, validateVersion(version)); }
   progress(payload) { this.notify('launch-progress', payload); }
@@ -29,89 +29,121 @@ class MinecraftService {
   cancelPrepare() {
     let cancelled = false;
     if (this.prepareAbort) { this.prepareAbort.abort(); cancelled = true; }
-    if (this.activeInstallController && !this.activeInstallController.signal.aborted) { this.activeInstallController.abort(); cancelled = true; }
+    if (this.activeInstallTask?.cancel) {
+      cancelled = true;
+      this.activeInstallTask.cancel(5000).catch((e) => this.logger.warn('XMCL kurulum görevi iptal edilemedi', e?.message || e));
+    }
     return cancelled;
   }
 
-  trackerObject(event) {
-    const payload = event?.payload || {};
-    const tracker = payload.download || payload.progress;
-    return tracker && typeof tracker === 'object' ? tracker : null;
+  xmclTaskName(task) { return String(task?.path || task?.name || task?.id || '').toLowerCase(); }
+  xmclTaskMessage(task, fallback) {
+    const p = this.xmclTaskName(task);
+    if (p.includes('asset')) return 'Minecraft varlıkları indiriliyor';
+    if (p.includes('librar')) return 'Minecraft kütüphaneleri indiriliyor';
+    if (p.includes('jar')) return 'Minecraft istemcisi indiriliyor';
+    if (p.includes('json') || p.includes('version')) return 'Minecraft sürüm bilgisi hazırlanıyor';
+    if (p.includes('depend')) return 'Minecraft bağımlılıkları doğrulanıyor';
+    return fallback;
   }
-
-  trackerStage(event, fallbackPhase) {
-    const p = String(event?.phase || '').toLowerCase();
-    if (p === 'version.json') return { start: 0.18, end: 0.21, phase: 'minecraft', label: 'Minecraft sürüm bilgisi indiriliyor' };
-    if (p === 'version.jar') return { start: 0.21, end: 0.30, phase: 'minecraft', label: 'Minecraft istemcisi indiriliyor' };
-    if (p.includes('libraries')) return fallbackPhase === 'fabric'
-      ? { start: 0.68, end: 0.80, phase: 'fabric', label: 'Fabric kütüphaneleri indiriliyor' }
-      : { start: 0.30, end: 0.43, phase: 'minecraft', label: 'Minecraft kütüphaneleri indiriliyor' };
-    if (p.includes('assets.assets')) return { start: 0.46, end: 0.59, phase: 'minecraft', label: 'Minecraft varlıkları indiriliyor' };
-    if (p.includes('assets')) return { start: 0.43, end: 0.46, phase: 'minecraft', label: 'Minecraft varlık indeksi hazırlanıyor' };
-    if (p.includes('profile')) return { start: 0.59, end: 0.61, phase: fallbackPhase, label: 'Minecraft profili hazırlanıyor' };
-    return fallbackPhase === 'fabric'
-      ? { start: 0.68, end: 0.84, phase: 'fabric', label: 'Fabric bağımlılıkları hazırlanıyor' }
-      : { start: 0.18, end: 0.61, phase: 'minecraft', label: 'Minecraft dosyaları hazırlanıyor' };
+  xmclStage(task) {
+    const p = this.xmclTaskName(task);
+    if (p.includes('json') || p.includes('version')) return [0.00, 0.12];
+    if (p.includes('jar')) return [0.12, 0.32];
+    if (p.includes('librar') || p.includes('depend')) return [0.32, 0.66];
+    if (p.includes('asset')) return [0.66, 1.00];
+    return [0.00, 1.00];
   }
-
-  emitTrackedProgress(state, fallbackPhase) {
-    const stage = this.trackerStage(state.event, fallbackPhase);
-    const t = state.tracker;
-    const done = Number(t?.progress);
-    const total = Number(t?.total);
-    const speed = Number(t?.speed);
-    const ratio = Number.isFinite(done) && Number.isFinite(total) && total > 0 ? clamp01(done / total) : 0;
-    let message = stage.label;
-    if (Number.isFinite(done) && Number.isFinite(total) && total > 0) {
-      message += ` • ${formatBytes(done)} / ${formatBytes(total)}`;
-      if (Number.isFinite(speed) && speed > 0) message += ` • ${formatBytes(speed)}/s`;
+  xmclMetric(currentTask, rootTask) {
+    for (const t of [currentTask, currentTask?.task, rootTask]) {
+      const total = Number(t?.total);
+      const done = Number(t?.progress);
+      if (Number.isFinite(total) && total > 0 && Number.isFinite(done) && done >= 0) return { task: t, done, total };
     }
-    this.progress({ phase: stage.phase, progress: stage.start + (stage.end - stage.start) * ratio, message });
+    return null;
   }
 
-  async trackedInstall(operation, fallbackPhase, signal, maxAttempts = 3) {
+  async runXmclTask(taskFactory, start, end, phase, fallback, signal, maxAttempts = 3) {
     let lastError;
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       if (signal?.aborted) throw Object.assign(new Error('Hazırlama işlemi iptal edildi.'), { name: 'AbortError' });
-      const controller = new AbortController();
-      this.activeInstallController = controller;
-      const abortFromParent = () => controller.abort();
-      signal?.addEventListener('abort', abortFromParent, { once: true });
-      const state = { event: null, tracker: null, lastBytes: -1, lastAdvance: Date.now(), stalled: false };
-      const tracker = (event) => {
-        state.event = event;
-        const t = this.trackerObject(event);
-        if (t) state.tracker = t;
-        this.emitTrackedProgress(state, fallbackPhase);
-        const bytes = Number(state.tracker?.progress);
-        if (Number.isFinite(bytes) && bytes > state.lastBytes) { state.lastBytes = bytes; state.lastAdvance = Date.now(); }
+      const task = taskFactory();
+      if (!task || typeof task.startAndWait !== 'function') throw new Error('XMCL kurulum görevi oluşturulamadı.');
+      this.activeInstallTask = task;
+      const state = {
+        currentTask: task,
+        lastValue: start,
+        lastMetric: -1,
+        lastAdvance: Date.now(),
+        lastPollAt: Date.now(),
+        lastPollBytes: 0,
+        speed: 0,
+        stalled: false
       };
-      const poll = setInterval(() => {
-        if (!state.tracker) return;
-        this.emitTrackedProgress(state, fallbackPhase);
-        const bytes = Number(state.tracker.progress);
-        const total = Number(state.tracker.total);
-        if (Number.isFinite(bytes) && bytes > state.lastBytes) { state.lastBytes = bytes; state.lastAdvance = Date.now(); }
-        const downloading = Number.isFinite(total) && total > 0 && Number.isFinite(bytes) && bytes < total;
-        if (downloading && Date.now() - state.lastAdvance >= 60000 && !state.stalled) {
-          state.stalled = true;
-          this.logger.warn('XMCL indirmesi 60 saniye ilerlemedi; yeniden denenecek', state.event?.phase || fallbackPhase);
-          controller.abort();
+      const emit = (currentTask = state.currentTask, force = false) => {
+        if (currentTask) state.currentTask = currentTask;
+        const metric = this.xmclMetric(state.currentTask, task);
+        const [stageStart, stageEnd] = this.xmclStage(state.currentTask);
+        let ratio = 0;
+        if (metric) ratio = clamp01(metric.done / metric.total);
+        const candidate = start + (end - start) * (stageStart + (stageEnd - stageStart) * ratio);
+        state.lastValue = Math.max(state.lastValue, Math.min(end, candidate));
+        let message = this.xmclTaskMessage(state.currentTask, fallback);
+        if (metric && metric.total >= 64 * 1024) {
+          message += ` • ${formatBytes(metric.done)} / ${formatBytes(metric.total)}`;
+          if (state.speed > 1024) message += ` • ${formatBytes(state.speed)}/s`;
         }
-      }, 400);
+        this.progress({ phase, progress: state.lastValue, message });
+        if (force) this.logger.info('XMCL ilerleme', `${message} (${Math.round(state.lastValue * 100)}%)`);
+      };
+      const observeMetric = () => {
+        const metric = this.xmclMetric(state.currentTask, task);
+        if (!metric) return;
+        const now = Date.now();
+        if (metric.done > state.lastMetric) {
+          state.lastMetric = metric.done;
+          state.lastAdvance = now;
+        }
+        if (metric.total >= 64 * 1024) {
+          const elapsed = Math.max(1, now - state.lastPollAt) / 1000;
+          const delta = Math.max(0, metric.done - state.lastPollBytes);
+          state.speed = delta / elapsed;
+          state.lastPollAt = now;
+          state.lastPollBytes = metric.done;
+        }
+        const p = this.xmclTaskName(state.currentTask);
+        const looksLikeDownload = p.includes('asset') || p.includes('librar') || p.includes('jar') || p.includes('json') || metric.total >= 64 * 1024;
+        if (looksLikeDownload && metric.done < metric.total && Date.now() - state.lastAdvance >= 60000 && !state.stalled) {
+          state.stalled = true;
+          this.logger.warn('XMCL indirmesi 60 saniye ilerlemedi; görev yeniden denenecek', state.currentTask?.path || state.currentTask?.name || p || phase);
+          task.cancel?.(5000).catch(() => {});
+        }
+      };
+      const context = {
+        onStart: (currentTask) => { state.currentTask = currentTask || task; observeMetric(); emit(state.currentTask, true); },
+        onUpdate: (currentTask) => { state.currentTask = currentTask || state.currentTask; observeMetric(); emit(state.currentTask); },
+        onFailed: (currentTask, error) => this.logger.error(`XMCL görev başarısız: ${currentTask?.path || currentTask?.name || 'task'}`, error),
+        onSucceed: (currentTask) => { state.currentTask = currentTask || state.currentTask; observeMetric(); emit(state.currentTask, true); },
+        onCancelled: (currentTask) => this.logger.warn('XMCL görev iptal edildi', currentTask?.path || currentTask?.name || 'task')
+      };
+      const poll = setInterval(() => { observeMetric(); emit(state.currentTask); }, 400);
+      const abort = () => task.cancel?.(5000).catch(() => {});
+      signal?.addEventListener('abort', abort, { once: true });
       try {
-        const result = await operation({ tracker, signal: controller.signal });
+        const result = await task.startAndWait(context);
+        if (state.stalled && !signal?.aborted) throw new Error('XMCL indirmesi ilerlemedi.');
+        this.progress({ phase, progress: end, message: fallback });
         return result;
       } catch (e) {
         lastError = e;
         if (signal?.aborted) throw Object.assign(new Error('Hazırlama işlemi iptal edildi.'), { name: 'AbortError' });
-        if (attempt >= maxAttempts || !state.stalled) throw e;
-        this.progress({ phase: fallbackPhase, progress: fallbackPhase === 'fabric' ? 0.68 : 0.30, message: `İndirme durdu, yeniden deneniyor (${attempt + 1}/${maxAttempts})` });
-        await new Promise((resolve) => setTimeout(resolve, 1200 * attempt));
+        if (!state.stalled || attempt >= maxAttempts) throw e;
+        this.progress({ phase, progress: state.lastValue, message: `İndirme durdu, yeniden deneniyor (${attempt + 1}/${maxAttempts})` });
+        await new Promise((resolve) => setTimeout(resolve, attempt * 1200));
       } finally {
         clearInterval(poll);
-        signal?.removeEventListener('abort', abortFromParent);
-        if (this.activeInstallController === controller) this.activeInstallController = null;
+        signal?.removeEventListener('abort', abort);
+        if (this.activeInstallTask === task) this.activeInstallTask = null;
       }
     }
     throw lastError || new Error('Minecraft kurulumu tamamlanamadı.');
@@ -128,32 +160,27 @@ class MinecraftService {
     const meta = list.versions.find((v) => v.id === mcVersion);
     if (!meta) throw new Error(`Mojang sürüm listesinde ${mcVersion} bulunamadı.`);
 
-    this.progress({ phase: 'minecraft', progress: 0.18, message: `Minecraft ${mcVersion} hazırlanıyor` });
-    const vanillaResolved = await this.trackedInstall(
-      (options) => installer.installMinecraft(meta, location, { side: 'client', ...options }),
-      'minecraft', signal
+    this.progress({ phase: 'minecraft', progress: 0.18, message: `Minecraft ${mcVersion} kuruluyor` });
+    await this.runXmclTask(
+      () => installer.installTask(meta, location, { side: 'client' }),
+      0.18, 0.50, 'minecraft', 'Minecraft dosyaları hazır', signal
     );
-    await this.trackedInstall(
-      (options) => installer.completeInstallation(vanillaResolved, options),
-      'minecraft', signal
-    );
-    this.progress({ phase: 'minecraft', progress: 0.61, message: 'Minecraft dosyaları hazır' });
 
     const loaders = await installer.getLoaderArtifactListFor(mcVersion);
     const loaderArtifact = loaders.find((x) => x?.loader?.stable) || loaders[0];
     const loaderVersion = loaderArtifact?.loader?.version || loaderArtifact?.version;
     if (!loaderArtifact || !loaderVersion) throw new Error(`Fabric Loader bulunamadı: ${mcVersion}`);
 
-    this.progress({ phase: 'fabric', progress: 0.63, message: `Fabric Loader ${loaderVersion} kuruluyor` });
+    this.progress({ phase: 'fabric', progress: 0.60, message: `Fabric Loader ${loaderVersion} kuruluyor` });
     const fabricId = await installer.installFabricByLoaderArtifact(loaderArtifact, location, { inheritsFrom: mcVersion });
     if (!fabricId || typeof fabricId !== 'string') throw new Error('Fabric profil kimliği oluşturulamadı.');
 
+    this.progress({ phase: 'fabric', progress: 0.72, message: 'Fabric bağımlılıkları tamamlanıyor' });
     const fabricResolved = await core.Version.parse(location, fabricId);
-    await this.trackedInstall(
-      (options) => installer.completeInstallation(fabricResolved, options),
-      'fabric', signal
+    await this.runXmclTask(
+      () => installer.installDependenciesTask(fabricResolved),
+      0.72, 0.84, 'fabric', 'Fabric hazır', signal
     );
-    this.progress({ phase: 'fabric', progress: 0.84, message: 'Fabric hazır' });
     return { fabricId, fabricVersion: loaderVersion };
   }
 
@@ -177,7 +204,7 @@ class MinecraftService {
     } catch (e) {
       if (e?.name === 'AbortError' || this.prepareAbort?.signal.aborted) throw new Error('Hazırlama işlemi iptal edildi.');
       throw e;
-    } finally { this.preparing = false; this.prepareAbort = null; this.activeInstallController = null; if (!this.running) this.runningVersion = ''; this.notify('game-state', this.state()); }
+    } finally { this.preparing = false; this.prepareAbort = null; this.activeInstallTask = null; if (!this.running) this.runningVersion = ''; this.notify('game-state', this.state()); }
   }
 
   async launch(version) {
