@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('dih', {
   listVersions: () => ipcRenderer.invoke('versions:list'),
   getVersionManifest: (version) => ipcRenderer.invoke('versions:manifest', version),
   loginMicrosoft: () => ipcRenderer.invoke('auth:login'),
+  loginOffline: (username) => ipcRenderer.invoke('auth:offline-login', username),
   logout: () => ipcRenderer.invoke('auth:logout'),
   cancelLogin: () => ipcRenderer.invoke('auth:cancel-login'),
   getAccount: () => ipcRenderer.invoke('auth:get'),
