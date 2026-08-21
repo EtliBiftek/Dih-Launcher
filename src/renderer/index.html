@@ -19,7 +19,7 @@
         <button class="nav" data-page="settings">Ayarlar</button>
       </nav>
       <div class="side-bottom">
-        <button id="accountBtn" class="account"><span class="avatar">?</span><span><b>Giriş yapılmadı</b><small>Microsoft hesabı</small></span></button>
+        <button id="accountBtn" class="account"><span class="avatar">?</span><span><b>Giriş yapılmadı</b><small>Microsoft veya Offline</small></span></button>
         <button id="dataFolderBtn" class="ghost">Veri klasörü</button>
         <small id="appVersion" class="version-label">Dih</small>
       </div>
@@ -65,7 +65,7 @@
           <article class="card settings-card"><h3>Minecraft</h3><div class="row"><label>Min RAM (MB)<input id="minRam" type="number" min="512" step="256" /></label><label>Max RAM (MB)<input id="maxRam" type="number" min="1024" step="256" /></label></div><div class="row"><label>Genişlik<input id="gameWidth" type="number" /></label><label>Yükseklik<input id="gameHeight" type="number" /></label></div><label class="check"><input id="fullscreen" type="checkbox" /> Tam ekran başlat</label><label>Özel Java yolu<input id="javaPath" placeholder="Boş = otomatik" /></label><label class="check"><input id="autoJava" type="checkbox" /> Java yoksa otomatik indir</label></article>
           <article class="card settings-card"><h3>Launcher davranışı</h3><label class="check"><input id="hideWhilePlaying" type="checkbox" /> Oyun açıkken launcher'ı gizle</label><label class="check"><input id="discordRpc" type="checkbox" /> Discord Rich Presence</label><label>Discord Application ID<input id="discordAppId" placeholder="İsteğe bağlı" /></label><label class="check"><input id="autoCheckUpdates" type="checkbox" /> Başlangıçta güncelleme kontrolü</label></article>
           <article class="card settings-card"><h3>Güncelleme deposu</h3><label>Kullanıcı / Organizasyon<input id="upOwner" placeholder="Boşsa içerik deposu kullanılır" /></label><label>Repo<input id="upRepo" placeholder="Boşsa içerik deposu kullanılır" /></label><button id="checkUpdateBtn" class="ghost">Şimdi kontrol et</button></article>
-          <article class="card settings-card wide"><h3>Microsoft</h3><label>Microsoft Entra Client ID<input id="msClientId" placeholder="Public client / device-code uygulaması" /></label><small>Bunu yayınlamadan önce kendi uygulama kimliğinle sabitle. Kullanıcıların ayrı Client ID girmesi gerekmez.</small></article>
+          <article class="card settings-card wide"><h3>Microsoft</h3><label>Microsoft Entra Client ID<input id="msClientId" placeholder="Public client / device-code uygulaması" /></label><small>Yalnız Microsoft hesabıyla giriş için gereklidir. Offline hesap için Client ID gerekmez.</small></article>
           <article class="card settings-card wide"><h3>Gelişmiş</h3><label>Ek JVM argümanları<input id="javaArgs" placeholder="Örn: -XX:+UseG1GC" /></label><label>Ek Minecraft argümanları<input id="gameArgs" placeholder="Boş bırakabilirsin" /></label></article>
         </div>
       </section>
@@ -73,7 +73,27 @@
   </div>
 
   <div id="toast" class="toast hidden"></div>
-  <div id="authModal" class="modal hidden"><div class="modal-card"><button id="modalClose" class="x">×</button><span class="eyebrow">MICROSOFT</span><h2>Minecraft hesapları</h2><p id="authText">Lisanslı Minecraft hesabınla giriş yap.</p><div id="accountsList" class="accounts-list"></div><div id="deviceCodeBox" class="code-box hidden"><small>Kod</small><strong id="deviceCode"></strong></div><button id="loginBtn" class="primary full">Yeni Microsoft hesabı ekle</button><button id="logoutBtn" class="danger full hidden">Aktif hesaptan çık</button></div></div>
+  <div id="authModal" class="modal hidden">
+    <div class="modal-card">
+      <button id="modalClose" class="x">×</button>
+      <span class="eyebrow">HESAPLAR</span>
+      <h2>Minecraft hesapları</h2>
+      <p id="authText">Microsoft hesabı kullanabilir veya yalnız kullanıcı adıyla offline oynayabilirsin.</p>
+      <div id="accountsList" class="accounts-list"></div>
+
+      <div class="offline-box">
+        <span class="label">OFFLINE HESAP</span>
+        <label>Kullanıcı adı<input id="offlineName" maxlength="16" autocomplete="off" spellcheck="false" placeholder="Minecraft kullanıcı adı" /></label>
+        <button id="offlineLoginBtn" class="primary full">Offline hesapla oyna</button>
+        <small>3-16 karakter; harf, rakam ve _ kullanılabilir. Online-mode/premium sunucular Microsoft doğrulaması isteyebilir.</small>
+      </div>
+
+      <div class="auth-separator"><span>veya</span></div>
+      <div id="deviceCodeBox" class="code-box hidden"><small>Kod</small><strong id="deviceCode"></strong></div>
+      <button id="loginBtn" class="ghost full">Microsoft hesabı ekle</button>
+      <button id="logoutBtn" class="danger full hidden">Aktif hesaptan çık</button>
+    </div>
+  </div>
   <script src="./assets/app.js"></script>
 </body>
 </html>
