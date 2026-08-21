@@ -1,0 +1,15 @@
+{
+  "title": "Dih PvP 1.21.11",
+  "description": "Dih'in resmi PvP profili",
+  "recommendedRamMb": 4096,
+  "badge": "PVP",
+  "publishedAt": "2026-08-21",
+  "changelog": [
+    "Dih Client güncellendi",
+    "PvP mod paketi güncellendi"
+  ],
+  "javaArgs": [],
+  "gameArgs": [],
+  "minLauncherVersion": "1.0.0",
+  "requireDihClient": true
+}

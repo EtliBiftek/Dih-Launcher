@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' https: data:; style-src 'self'; script-src 'self'; connect-src 'self' https:;" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dih</title>
+  <link rel="stylesheet" href="./assets/app.css" />
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand"><div class="brand-mark">D</div><div><b>Dih</b><span>Fabric PvP Client</span></div></div>
+      <nav>
+        <button class="nav active" data-page="home">Oyna</button>
+        <button class="nav" data-page="versions">Sürümler</button>
+        <button class="nav" data-page="client">Dih Client</button>
+        <button class="nav" data-page="logs">Loglar</button>
+        <button class="nav" data-page="settings">Ayarlar</button>
+      </nav>
+      <div class="side-bottom">
+        <button id="accountBtn" class="account"><span class="avatar">?</span><span><b>Giriş yapılmadı</b><small>Microsoft hesabı</small></span></button>
+        <button id="dataFolderBtn" class="ghost">Veri klasörü</button>
+        <small id="appVersion" class="version-label">Dih</small>
+      </div>
+    </aside>
+
+    <main>
+      <section id="page-home" class="page active">
+        <header><div><span class="eyebrow">DIH CLIENT</span><h1>PvP için hazır.</h1><p>GitHub profili, Fabric, Java ve modlar tek tıkla hazırlanır.</p></div><button id="refreshBtn" class="ghost">Yenile</button></header>
+        <div class="hero-card">
+          <div class="hero-copy"><span class="pill">FABRIC</span><h2 id="selectedTitle">Henüz sürüm yok</h2><p id="selectedDesc">GitHub'daki sürümler klasörüne bir Minecraft sürüm klasörü eklediğinde burada görünür.</p></div>
+          <div class="hero-actions"><select id="versionSelect" disabled><option>Sürüm yok</option></select><button id="playBtn" class="primary" disabled>OYNA</button><button id="stopBtn" class="danger hidden">OYUNU KAPAT</button></div>
+        </div>
+        <div id="progressPanel" class="progress-panel hidden"><div class="progress-head"><b id="progressText">Hazırlanıyor</b><span id="progressPct">0%</span></div><div class="bar"><i id="progressBar"></i></div><div class="progress-actions"><button id="cancelPrepareBtn" class="ghost small hidden">İptal</button></div></div>
+        <div id="crashBox" class="alert danger-alert hidden"><b>Oyun beklenmedik şekilde kapandı</b><span id="crashReason"></span></div>
+        <div id="updateBox" class="alert hidden"><div><b id="updateTitle">Dih güncellemesi var</b><span id="updateText"></span></div><button id="updateBtn" class="primary small">İndir</button></div>
+        <div class="grid two">
+          <article class="card"><span class="label">KURULUM</span><h3>Akıllı doğrulama</h3><p>Doğru Java'yı, Minecraft dosyalarını ve stable Fabric Loader'ı otomatik hazırlar.</p></article>
+          <article class="card"><span class="label">SENKRON</span><h3>Yalnız değişeni indirir</h3><p>GitHub SHA ve dosya boyutunu izler; yönetilen eski dosyaları temizler, kişisel modlarına dokunmaz.</p></article>
+        </div>
+        <article id="changelogCard" class="card changelog-card hidden"><span class="label">SÜRÜM NOTLARI</span><h3 id="changelogTitle">Değişiklikler</h3><div id="changelogList" class="changelog-list"></div></article>
+      </section>
+
+      <section id="page-versions" class="page">
+        <header><div><span class="eyebrow">VERSIONS</span><h1>Sürümler</h1><p>Her klasör adı birebir Minecraft sürümüdür ve Fabric ile çalışır.</p></div></header>
+        <div id="versionsList" class="versions-list"><div class="empty">Henüz sürüm bulunamadı.</div></div>
+      </section>
+
+      <section id="page-client" class="page">
+        <header><div><span class="eyebrow">DIH CLIENT</span><h1>PvP modülleri</h1><p>Bu ayarlar seçilen instance içindeki <code>config/dih-client.json</code> dosyasına aktarılır.</p></div><button id="saveClientBtn" class="primary small">Kaydet</button></header>
+        <article class="card settings-card"><label class="switchline"><span><b>Dih Client</b><small>Launcher tarafından yönetilen mod yapılandırması</small></span><input id="clientEnabled" type="checkbox" /></label><div class="row"><label>HUD ölçeği<input id="clientScale" type="number" min="0.5" max="2" step="0.05" /></label><label>Zoom katsayısı<input id="zoomFactor" type="number" min="1.1" max="12" step="0.1" /></label></div><div class="row"><label>Low Fire aşağı kaydırma<input id="lowFireOffset" type="number" min="0" max="1.5" step="0.05" /></label><label>Hit Color<input id="hitColor" type="color" /></label></div><div class="row"><label>Time Changer<select id="timeOfDay"><option value="1000">Sabah</option><option value="6000">Öğlen</option><option value="12000">Gün batımı</option><option value="18000">Gece</option><option value="23000">Gün doğumu</option></select></label></div><small>HUD konumlarını oyun içinde <b>Right Shift → HUD Düzenle</b> ile sürükleyebilirsin.</small></article>
+        <div id="modulesGrid" class="module-grid"></div>
+      </section>
+
+      <section id="page-logs" class="page">
+        <header><div><span class="eyebrow">DIAGNOSTICS</span><h1>Loglar</h1><p>Minecraft veya launcher hatasını doğrudan buradan inceleyebilirsin.</p></div><div class="header-actions"><button id="showGameLogs" class="ghost active-tab">Minecraft</button><button id="showLauncherLogs" class="ghost">Launcher</button><button id="reloadLogs" class="ghost">Yenile</button></div></header>
+        <pre id="logView" class="log-view">Henüz log yok.</pre>
+      </section>
+
+      <section id="page-settings" class="page">
+        <header><div><span class="eyebrow">SETTINGS</span><h1>Ayarlar</h1><p>Launcher, oyun ve güncelleme seçenekleri.</p></div><button id="saveSettingsBtn" class="primary small">Kaydet</button></header>
+        <div class="settings-grid">
+          <article class="card settings-card"><h3>GitHub içerik deposu</h3><label>Kullanıcı / Organizasyon<input id="ghOwner" placeholder="EtliBiftek" /></label><label>Repo<input id="ghRepo" placeholder="Dih" /></label><div class="row"><label>Branch<input id="ghBranch" /></label><label>Sürümler klasörü<input id="ghRoot" /></label></div><small><code>sürümler/1.21/mods/*.jar</code></small></article>
+          <article class="card settings-card"><h3>Minecraft</h3><div class="row"><label>Min RAM (MB)<input id="minRam" type="number" min="512" step="256" /></label><label>Max RAM (MB)<input id="maxRam" type="number" min="1024" step="256" /></label></div><div class="row"><label>Genişlik<input id="gameWidth" type="number" /></label><label>Yükseklik<input id="gameHeight" type="number" /></label></div><label class="check"><input id="fullscreen" type="checkbox" /> Tam ekran başlat</label><label>Özel Java yolu<input id="javaPath" placeholder="Boş = otomatik" /></label><label class="check"><input id="autoJava" type="checkbox" /> Java yoksa otomatik indir</label></article>
+          <article class="card settings-card"><h3>Launcher davranışı</h3><label class="check"><input id="hideWhilePlaying" type="checkbox" /> Oyun açıkken launcher'ı gizle</label><label class="check"><input id="discordRpc" type="checkbox" /> Discord Rich Presence</label><label>Discord Application ID<input id="discordAppId" placeholder="İsteğe bağlı" /></label><label class="check"><input id="autoCheckUpdates" type="checkbox" /> Başlangıçta güncelleme kontrolü</label></article>
+          <article class="card settings-card"><h3>Güncelleme deposu</h3><label>Kullanıcı / Organizasyon<input id="upOwner" placeholder="Boşsa içerik deposu kullanılır" /></label><label>Repo<input id="upRepo" placeholder="Boşsa içerik deposu kullanılır" /></label><button id="checkUpdateBtn" class="ghost">Şimdi kontrol et</button></article>
+          <article class="card settings-card wide"><h3>Microsoft</h3><label>Microsoft Entra Client ID<input id="msClientId" placeholder="Public client / device-code uygulaması" /></label><small>Bunu yayınlamadan önce kendi uygulama kimliğinle sabitle. Kullanıcıların ayrı Client ID girmesi gerekmez.</small></article>
+          <article class="card settings-card wide"><h3>Gelişmiş</h3><label>Ek JVM argümanları<input id="javaArgs" placeholder="Örn: -XX:+UseG1GC" /></label><label>Ek Minecraft argümanları<input id="gameArgs" placeholder="Boş bırakabilirsin" /></label></article>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+  <div id="authModal" class="modal hidden"><div class="modal-card"><button id="modalClose" class="x">×</button><span class="eyebrow">MICROSOFT</span><h2>Minecraft hesapları</h2><p id="authText">Lisanslı Minecraft hesabınla giriş yap.</p><div id="accountsList" class="accounts-list"></div><div id="deviceCodeBox" class="code-box hidden"><small>Kod</small><strong id="deviceCode"></strong></div><button id="loginBtn" class="primary full">Yeni Microsoft hesabı ekle</button><button id="logoutBtn" class="danger full hidden">Aktif hesaptan çık</button></div></div>
+  <script src="./assets/app.js"></script>
+</body>
+</html>

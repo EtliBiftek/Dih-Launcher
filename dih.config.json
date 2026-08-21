@@ -1,0 +1,18 @@
+{
+  "github": {
+    "owner": "EtliBiftek",
+    "repo": "Dih-Launcher",
+    "branch": "main",
+    "versionsRoot": "sürümler"
+  },
+  "updates": {
+    "enabled": true,
+    "owner": "EtliBiftek",
+    "repo": "Dih-Launcher",
+    "prerelease": false,
+    "requireChecksum": true
+  },
+  "microsoftClientId": "",
+  "discordRpc": false,
+  "discordAppId": ""
+}

@@ -1,0 +1,17 @@
+{
+  "required": true,
+  "package": "dev.dih.client.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "client": [
+    "GameRendererMixin",
+    "ScreenEffectRendererMixin",
+    "LivingEntityRendererMixin",
+    "LightTextureMixin",
+    "GuiMixin",
+    "MouseHandlerMixin",
+    "CameraMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}

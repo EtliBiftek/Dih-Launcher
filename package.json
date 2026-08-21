@@ -1,0 +1,62 @@
+{
+  "name": "dih-launcher",
+  "version": "1.0.0",
+  "description": "Dih - PvP focused Minecraft Fabric launcher",
+  "main": "src/main/main.js",
+  "author": "Dih",
+  "license": "MIT",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "check": "node scripts/check.js",
+    "dist:win": "npm run verify && electron-builder --win nsis",
+    "dist:portable": "npm run verify && electron-builder --win portable",
+    "test": "node scripts/selftest.js",
+    "verify": "npm run check && npm test && node scripts/release-check.js"
+  },
+  "dependencies": {
+    "@xmcl/core": "^2.16.0",
+    "@xmcl/installer": "^6.3.1",
+    "@xmcl/user": "^4.4.2",
+    "discord-rpc": "^4.0.1",
+    "extract-zip": "^2.0.1",
+    "tar": "^7.4.3"
+  },
+  "devDependencies": {
+    "electron": "43.4.0",
+    "electron-builder": "26.15.7"
+  },
+  "build": {
+    "appId": "com.dih.launcher",
+    "productName": "Dih",
+    "asar": true,
+    "files": [
+      "src/**/*",
+      "package.json",
+      "dih.config.json"
+    ],
+    "directories": {
+      "output": "dist"
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "artifactName": "Dih-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "Dih"
+    },
+    "extraMetadata": {
+      "main": "src/main/main.js"
+    }
+  }
+}
