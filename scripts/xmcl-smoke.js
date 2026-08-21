@@ -9,7 +9,14 @@ const path = require('path');
   const user = await import('@xmcl/user');
 
   const requiredCore = ['launch', 'Version', 'MinecraftFolder'];
-  const requiredInstaller = ['getVersionList', 'installTask', 'installDependenciesTask', 'getLoaderArtifactListFor', 'installFabricByLoaderArtifact'];
+  const requiredInstaller = [
+    'getVersionList',
+    'installVersionTask',
+    'installLibrariesTask',
+    'installAssetsTask',
+    'getLoaderArtifactListFor',
+    'installFabricByLoaderArtifact'
+  ];
   const requiredUser = ['MicrosoftAuthenticator', 'MojangClient'];
 
   for (const name of requiredCore) if (!core[name]) throw new Error(`@xmcl/core export missing: ${name}`);
@@ -19,8 +26,8 @@ const path = require('path');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dih-xmcl-smoke-'));
   try {
     const location = core.MinecraftFolder.from(tmp);
-    const task = installer.installTask({ id: 'dih-smoke', url: 'https://example.invalid/version.json' }, location, { side: 'client' });
-    if (!task || typeof task.startAndWait !== 'function' || typeof task.cancel !== 'function') throw new Error('XMCL task API shape mismatch');
+    const task = installer.installVersionTask({ id: 'dih-smoke', url: 'https://example.invalid/version.json' }, location, { side: 'client' });
+    if (!task || typeof task.startAndWait !== 'function' || typeof task.cancel !== 'function') throw new Error('XMCL split task API shape mismatch');
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
