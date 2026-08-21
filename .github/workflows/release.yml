@@ -1,7 +1,9 @@
 name: Release Dih
+
 on:
   push:
     tags: ['v*']
+
 permissions:
   contents: write
 
@@ -39,10 +41,15 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
-      - name: Install dependencies
-        run: npm install
-      - name: Verify and build
-        run: npm run dist:win
+          cache: npm
+      - name: Install locked dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Verify offline runtime APIs
+        run: npm run verify
+      - name: Verify Mojang and Fabric metadata
+        run: node scripts/xmcl-online-smoke.js
+      - name: Build NSIS installer
+        run: npx electron-builder --win nsis
       - name: SHA-256
         shell: pwsh
         run: |
