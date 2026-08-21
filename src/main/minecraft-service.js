@@ -8,7 +8,6 @@ const { compareVersions } = require('../shared/version');
 
 const SAFE_VERSION = /^[0-9A-Za-z._+\-]{1,80}$/;
 function validateVersion(value) { const v = String(value || ''); if (!SAFE_VERSION.test(v)) throw new Error('Geçersiz Minecraft sürüm kimliği.'); return v; }
-function trackerMessage(e, fallback) { return e?.phase ? String(e.phase) : fallback; }
 
 class MinecraftService {
   constructor(app, configStore, githubService, javaManager, authService, clientConfig, rpc, logger, notify) {
@@ -22,19 +21,33 @@ class MinecraftService {
   cancelPrepare() { if (!this.prepareAbort) return false; this.prepareAbort.abort(); return true; }
 
   async ensureMinecraftAndFabric(mcVersion) {
-    const installer = await import('@xmcl/installer'); const core = await import('@xmcl/core');
-    await fsp.mkdir(this.resources, { recursive: true }); const location = core.MinecraftFolder.from(this.resources); const signal = this.prepareAbort?.signal;
-    this.progress({ phase: 'minecraft', progress: 0.05, message: `Minecraft ${mcVersion} doğrulanıyor` });
-    const list = await installer.getVersionList(); const meta = list.versions.find((v) => v.id === mcVersion); if (!meta) throw new Error(`Mojang sürüm listesinde ${mcVersion} bulunamadı.`);
-    const baseResolved = await installer.installMinecraft(meta, location, { abortSignal: signal, tracker: (e) => this.progress({ phase: 'minecraft', progress: 0.18, message: trackerMessage(e, 'Minecraft indiriliyor') }) });
-    await installer.completeInstallation(baseResolved, { abortSignal: signal, tracker: (e) => this.progress({ phase: 'minecraft', progress: 0.42, message: trackerMessage(e, 'Minecraft dosyaları tamamlanıyor') }) });
+    const installer = await import('@xmcl/installer');
+    const core = await import('@xmcl/core');
+    await fsp.mkdir(this.resources, { recursive: true });
+    const location = core.MinecraftFolder.from(this.resources);
 
-    const loaderArtifact = await installer.getFabricLoaderArtifact(); const loaderVersion = loaderArtifact?.version; if (!loaderVersion) throw new Error(`Fabric Loader bulunamadı: ${mcVersion}`);
-    this.progress({ phase: 'fabric', progress: 0.56, message: `Fabric Loader ${loaderVersion} kuruluyor` });
-    const result = await installer.installFabric({ minecraft: mcVersion, loader: loaderVersion }, location);
-    const fabricId = typeof result === 'string' ? result : (result?.id || `fabric-loader-${loaderVersion}-${mcVersion}`);
-    const fabricResolved = await core.Version.parse(this.resources, fabricId);
-    await installer.completeInstallation(fabricResolved, { abortSignal: signal, tracker: (e) => this.progress({ phase: 'fabric', progress: 0.78, message: trackerMessage(e, 'Fabric bağımlılıkları tamamlanıyor') }) });
+    this.progress({ phase: 'minecraft', progress: 0.05, message: `Minecraft ${mcVersion} doğrulanıyor` });
+    const list = await installer.getVersionList();
+    const meta = list.versions.find((v) => v.id === mcVersion);
+    if (!meta) throw new Error(`Mojang sürüm listesinde ${mcVersion} bulunamadı.`);
+
+    this.progress({ phase: 'minecraft', progress: 0.18, message: `Minecraft ${mcVersion} kuruluyor` });
+    await installer.install(meta, location);
+    this.progress({ phase: 'minecraft', progress: 0.50, message: 'Minecraft dosyaları hazır' });
+
+    const loaders = await installer.getLoaderArtifactListFor(mcVersion);
+    const loaderArtifact = loaders.find((x) => x?.loader?.stable) || loaders[0];
+    const loaderVersion = loaderArtifact?.loader?.version || loaderArtifact?.version;
+    if (!loaderArtifact || !loaderVersion) throw new Error(`Fabric Loader bulunamadı: ${mcVersion}`);
+
+    this.progress({ phase: 'fabric', progress: 0.60, message: `Fabric Loader ${loaderVersion} kuruluyor` });
+    const fabricId = await installer.installFabric(loaderArtifact, location, { inheritsFrom: mcVersion });
+    if (!fabricId || typeof fabricId !== 'string') throw new Error('Fabric profil kimliği oluşturulamadı.');
+
+    this.progress({ phase: 'fabric', progress: 0.72, message: 'Fabric bağımlılıkları tamamlanıyor' });
+    const fabricResolved = await core.Version.parse(location, fabricId);
+    await installer.installDependencies(fabricResolved);
+    this.progress({ phase: 'fabric', progress: 0.84, message: 'Fabric hazır' });
     return { fabricId, fabricVersion: loaderVersion };
   }
 
