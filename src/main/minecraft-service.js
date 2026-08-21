@@ -78,13 +78,29 @@ class MinecraftService {
     version = validateVersion(version); if (this.running || this.preparing) throw new Error('Oyun veya hazırlama işlemi zaten devam ediyor.');
     const cfg = this.configStore.get(); const session = await this.authService.ensureSession(); const prepared = await this.prepare(version, false); const { launch } = await import('@xmcl/core'); const meta = prepared.manifest.meta || {};
     const maxMemory = Math.max(Number(cfg.maxMemoryMb) || 4096, Number(meta.recommendedRamMb) || 0);
-    this.logger.resetGameLog(); this.progress({ phase: 'launch', progress: 0.94, message: 'Minecraft başlatılıyor' });
-    const child = await launch({ gamePath: prepared.instance, resourcePath: this.resources, version: prepared.fabricId, javaPath: prepared.javaPath, gameProfile: { name: session.name, id: session.id }, accessToken: session.accessToken, userType: 'msa', launcherName: 'Dih', launcherBrand: this.app.getVersion(), minMemory: Number(cfg.minMemoryMb) || 1024, maxMemory, resolution: cfg.fullscreen ? { fullscreen: true } : { width: Number(cfg.width) || 1280, height: Number(cfg.height) || 720 }, extraJVMArgs: [...(Array.isArray(cfg.javaArgs) ? cfg.javaArgs : []), ...(Array.isArray(meta.javaArgs) ? meta.javaArgs : [])], extraMCArgs: [...(Array.isArray(cfg.gameArgs) ? cfg.gameArgs : []), ...(Array.isArray(meta.gameArgs) ? meta.gameArgs : [])] });
-    this.running = child; this.runningVersion = version; this.notify('game-state', this.state()); this.progress({ phase: 'launch', progress: 1, message: 'Minecraft çalışıyor' }); await this.rpc.start(version);
+    const offline = session.type === 'offline';
+    this.logger.resetGameLog(); this.progress({ phase: 'launch', progress: 0.94, message: offline ? `Minecraft offline olarak başlatılıyor (${session.name})` : 'Minecraft başlatılıyor' });
+    const child = await launch({
+      gamePath: prepared.instance,
+      resourcePath: this.resources,
+      version: prepared.fabricId,
+      javaPath: prepared.javaPath,
+      gameProfile: { name: session.name, id: session.id },
+      accessToken: offline ? '0' : session.accessToken,
+      userType: offline ? 'legacy' : 'msa',
+      launcherName: 'Dih',
+      launcherBrand: this.app.getVersion(),
+      minMemory: Number(cfg.minMemoryMb) || 1024,
+      maxMemory,
+      resolution: cfg.fullscreen ? { fullscreen: true } : { width: Number(cfg.width) || 1280, height: Number(cfg.height) || 720 },
+      extraJVMArgs: [...(Array.isArray(cfg.javaArgs) ? cfg.javaArgs : []), ...(Array.isArray(meta.javaArgs) ? meta.javaArgs : [])],
+      extraMCArgs: [...(Array.isArray(cfg.gameArgs) ? cfg.gameArgs : []), ...(Array.isArray(meta.gameArgs) ? meta.gameArgs : [])]
+    });
+    this.running = child; this.runningVersion = version; this.notify('game-state', this.state()); this.progress({ phase: 'launch', progress: 1, message: `Minecraft çalışıyor • ${offline ? 'Offline' : 'Microsoft'} • ${session.name}` }); await this.rpc.start(version);
     child.stdout?.on('data', (b) => { this.logger.game('OUT', b.toString()); this.notify('game-log', b.toString()); }); child.stderr?.on('data', (b) => { this.logger.game('ERR', b.toString()); this.notify('game-log', b.toString()); });
     child.once('exit', async (code, signal) => { this.logger.info('Minecraft kapandı', `code=${code} signal=${signal || ''}`); await this.rpc.stop(); const crash = analyzeCrash(this.logger.recentGameLines(600), code); this.running = null; this.runningVersion = ''; this.notify('game-state', { ...this.state(), code, signal, ...crash }); });
     child.once('error', async (e) => { this.logger.error('Minecraft process hatası', e); await this.rpc.stop(); this.running = null; this.runningVersion = ''; this.notify('game-state', { ...this.state(), error: e.message, crashed: true, reason: e.message }); });
-    return { pid: child.pid, version };
+    return { pid: child.pid, version, accountType: session.type, username: session.name };
   }
 
   async repair(version) { if (this.running || this.preparing) throw new Error('Oyun/hazırlama çalışırken repair yapılamaz.'); const instance = this.instanceDir(version); this.progress({ phase: 'repair', progress: 0.01, message: 'Yönetilen dosyalar temizleniyor' }); await this.githubService.removeManagedFiles(instance); await this.prepare(version, true); this.progress({ phase: 'repair', progress: 1, message: 'Repair tamamlandı' }); return true; }
