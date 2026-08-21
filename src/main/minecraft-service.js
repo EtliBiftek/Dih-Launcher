@@ -32,7 +32,7 @@ class MinecraftService {
     if (!meta) throw new Error(`Mojang sürüm listesinde ${mcVersion} bulunamadı.`);
 
     this.progress({ phase: 'minecraft', progress: 0.18, message: `Minecraft ${mcVersion} kuruluyor` });
-    await installer.install(meta, location);
+    await installer.install('client', meta, location);
     this.progress({ phase: 'minecraft', progress: 0.50, message: 'Minecraft dosyaları hazır' });
 
     const loaders = await installer.getLoaderArtifactListFor(mcVersion);
@@ -41,7 +41,7 @@ class MinecraftService {
     if (!loaderArtifact || !loaderVersion) throw new Error(`Fabric Loader bulunamadı: ${mcVersion}`);
 
     this.progress({ phase: 'fabric', progress: 0.60, message: `Fabric Loader ${loaderVersion} kuruluyor` });
-    const fabricId = await installer.installFabric(loaderArtifact, location, { inheritsFrom: mcVersion });
+    const fabricId = await installer.installFabricByLoaderArtifact(loaderArtifact, location, { inheritsFrom: mcVersion });
     if (!fabricId || typeof fabricId !== 'string') throw new Error('Fabric profil kimliği oluşturulamadı.');
 
     this.progress({ phase: 'fabric', progress: 0.72, message: 'Fabric bağımlılıkları tamamlanıyor' });
