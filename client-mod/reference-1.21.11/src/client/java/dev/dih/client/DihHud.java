@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.item.PrimedTnt;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.EntityHitResult;
@@ -21,6 +22,9 @@ public final class DihHud {
     }
 
     private static final Map<String, Bounds> BOUNDS = new LinkedHashMap<>();
+    private static final EquipmentSlot[] ARMOR_SLOTS = {
+            EquipmentSlot.FEET, EquipmentSlot.LEGS, EquipmentSlot.CHEST, EquipmentSlot.HEAD
+    };
     private DihHud() {}
 
     public static Map<String, Bounds> bounds() { return new LinkedHashMap<>(BOUNDS); }
@@ -99,7 +103,8 @@ public final class DihHud {
     private static void renderArmor(GuiGraphics g, int x, int y, Minecraft mc) {
         if (mc.player == null) return;
         int i = 0;
-        for (ItemStack stack : mc.player.getArmorSlots()) {
+        for (EquipmentSlot slot : ARMOR_SLOTS) {
+            ItemStack stack = mc.player.getItemBySlot(slot);
             if (stack.isEmpty()) continue;
             g.renderItem(stack, x + i * 22, y);
             if (stack.isDamageableItem()) {
