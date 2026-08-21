@@ -3,16 +3,19 @@ name: Build Dih Launcher
 on:
   workflow_dispatch:
   push:
+    branches: [main]
     paths:
       - 'src/**'
       - 'scripts/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/build-launcher.yml'
   pull_request:
     paths:
       - 'src/**'
       - 'scripts/**'
       - 'package.json'
+      - 'package-lock.json'
       - '.github/workflows/build-launcher.yml'
 
 jobs:
@@ -23,12 +26,23 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: ${{ hashFiles('package-lock.json') != '' && 'npm' || '' }}
+      - name: Generate lockfile when missing
+        if: ${{ hashFiles('package-lock.json') == '' }}
+        run: npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+      - name: Upload generated lockfile
+        if: ${{ hashFiles('package-lock.json') == '' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: generated-package-lock
+          path: package-lock.json
+          if-no-files-found: error
       - name: Install dependencies
-        run: npm install
-      - name: Static checks
-        run: npm run check
+        run: npm ci --no-audit --no-fund
+      - name: Verify
+        run: npm run verify
       - name: Build NSIS installer
-        run: npm run dist:win
+        run: npx electron-builder --win nsis
       - name: Create SHA-256 files
         shell: pwsh
         run: |
@@ -42,3 +56,4 @@ jobs:
           path: |
             dist/*.exe
             dist/*.sha256
+          if-no-files-found: error
