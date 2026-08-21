@@ -7,6 +7,7 @@ const { newer } = require('../src/main/updater-service');
 const { analyzeCrash } = require('../src/main/crash-analyzer');
 const { ConfigStore } = require('../src/main/config-store');
 const { GitHubService } = require('../src/main/github-service');
+const { validateOfflineUsername, offlineUuid } = require('../src/shared/offline-account');
 
 assert.equal(newer('0.5.1', '0.5.0'), true);
 assert.equal(newer('0.5.0', '0.5.0'), false);
@@ -15,6 +16,13 @@ assert.equal(newer('1.0.0', '0.99.99'), true);
 const oom = analyzeCrash(['java.lang.OutOfMemoryError: Java heap space'], 1);
 assert.equal(oom.crashed, true);
 assert.match(String(oom.reason), /RAM|bellek|memory/i);
+
+assert.equal(validateOfflineUsername('Player_123'), 'Player_123');
+assert.throws(() => validateOfflineUsername('a'), /3-16/);
+assert.throws(() => validateOfflineUsername('bad name'), /3-16/);
+assert.equal(offlineUuid('Player_123').length, 32);
+assert.equal(offlineUuid('Player_123'), offlineUuid('Player_123'));
+assert.notEqual(offlineUuid('Player_123'), offlineUuid('Player_124'));
 
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'dih-test-'));
 const app = { getPath: () => tmp };
