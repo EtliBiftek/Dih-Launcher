@@ -1,0 +1,1 @@
+verify asset tracker polling and stall retry
