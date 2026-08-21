@@ -1,4 +1,5 @@
 name: Build Dih Launcher
+# CI verification: electron-builder publishing is explicitly disabled.
 
 on:
   workflow_dispatch:
